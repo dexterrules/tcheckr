@@ -1,0 +1,209 @@
+---
+title: "Fb_troll_2_final"
+output: html_document
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyverse)
+```
+
+## Sanchit Soni
+This is the the second survey which consisted the following questions like-
+Which gender gets trolled by which other gender?
+Which gender gets more emotionally hurt?
+Which gender gets more angered  by trolling?
+
+
+
+
+
+
+```{r import, echo=F}
+data <- read_csv("fb_troll2.csv")
+data %>% head
+# First two rows (after the column name) have metadata, remove them
+data <- data %>% filter(row_number() > 2)
+# add row ids
+data <- data %>% rownames_to_column("id")
+data %>% head
+```
+
+
+## Which gender gets trolled by which other gender?
+1= Male 2= Female 4= Don't remember 5=Never been trolled
+
+```{r}
+
+library(reshape2)
+mmff <- dcast(data %>% select(Q3, Q5), Q3 ~ Q5)
+filter(data, Q5=="1"|Q5=="2")
+print (mmff)
+```
+
+
+```{r}
+ 
+# Library
+library(fmsb)
+ 
+# Create data: note in High school for several students
+rradar <- matrix(c(10,1,3,15,4,3,1,13),ncol=4,byrow=TRUE)
+colnames(rradar) <- c("Male","Female", "DR", "NBT")
+rownames(rradar) <- c("m","f")
+rradar <- as.table(rradar)
+rradar
+ 
+heat_matrix <- data.matrix(rradar)
+
+malefemale_heatmap <- heatmap(heat_matrix, Rowv=NA, Colv=NA, col = heat.colors(256), scale="none", margins=c(10,5))
+ 
+ 
+```
+
+
+```{r}
+library(plotly)
+packageVersion('plotly')
+
+p <- plot_ly(
+    type = 'scatterpolar',
+    fill = 'toself'
+  ) %>%
+  add_trace(
+    r = c(10, 1, 0, 3, 15, 10),
+    theta = c('Male','Female','Other', 'CR', 'NBT', 'Male'),
+    name = 'Male'
+  ) %>%
+  add_trace(
+    r = c(4, 3, 0, 1, 13, 4),
+    theta = c('Male','Female','Other', 'CR', 'NBT', 'Male'),
+    name = 'Female'
+  ) %>%
+  layout(
+    polar = list(
+      radialaxis = list(
+        visible = T,
+        range = c(0,20)
+      )
+    )
+  )
+print(p)
+```
+
+
+
+## Which gender gets more emotionally hurt?
+
+
+```{r}
+data <- data %>% mutate_at(vars(starts_with("Q2_1")), as.numeric)
+data <- data %>% mutate(emo_hurt=
+(6-Q2_1))
+data %>% select(emo_hurt, starts_with("Q2_1"))
+```
+
+
+
+
+
+
+
+```{r}
+library(glue)
+# define function to output 95% confidence interval (z-score = 1.96) string
+ci95 <- function(x) {
+glue("({format(mean(x)-1.96*sd(x), digits=3)}, {format(mean(x)+1.96*sd(x), digits=
+3)})")
+}
+data %>% summarise(mean=mean(emo_hurt),
+SD=sd(emo_hurt),
+CI=ci95(emo_hurt))
+```                            
+##I am interested in whether there is a difference in emotional hurt scores between females and males.
+```{r}
+desc <- data %>% group_by(Q3) %>% summarise(mean=mean(emo_hurt),
+SD=sd(emo_hurt),
+CI=ci95(emo_hurt))
+desc
+
+``` 
+
+```{r}
+males <- data %>% filter(Q3 == 1) %>% pull(emo_hurt)
+females <- data %>% filter(Q3 == 2) %>% pull(emo_hurt)
+data %>% filter(Q3 == 1) %>% ggplot(aes(emo_hurt)) + geom_histogram(binwidth=2)
+
+``` 
+
+```{r}
+data %>% filter(Q3 == 2) %>% ggplot(aes(emo_hurt)) + geom_histogram(binwidth=2)
+
+``` 
+
+
+
+
+```{r}
+t.test(males, females, var.equal=T)
+
+``` 
+
+## Which gender gets more angered  by trolling?
+
+
+```{r}
+data <- data %>% mutate_at(vars(starts_with("Q2_2")), as.numeric)
+data <- data %>% mutate(deg_anger=
+(6-Q2_2))
+data %>% select(deg_anger, starts_with("Q2_2"))
+```
+
+
+
+```{r}
+library(glue)
+# define function to output 95% confidence interval (z-score = 1.96) string
+ci95 <- function(x) {
+glue("({format(mean(x)-1.96*sd(x), digits=3)}, {format(mean(x)+1.96*sd(x), digits=
+3)})")
+}
+data %>% summarise(mean=mean(deg_anger),
+SD=sd(deg_anger),
+CI=ci95(deg_anger))
+```
+
+
+
+
+```{r}
+desc2 <- data %>% group_by(Q3) %>% summarise(mean=mean(deg_anger),
+SD=sd(deg_anger),
+CI=ci95(deg_anger))
+desc2
+```
+
+
+```{r}
+males <- data %>% filter(Q3 == 1) %>% pull(deg_anger)
+females <- data %>% filter(Q3 == 2) %>% pull(deg_anger)
+data %>% filter(Q3 == 1) %>% ggplot(aes(deg_anger)) + geom_histogram(binwidth=2)
+
+```
+
+```{r}
+data %>% filter(Q3 == 2) %>% ggplot(aes(deg_anger)) + geom_histogram(binwidth=2)
+
+```
+
+```{r}
+t.test(males, females, var.equal=T)
+
+```
+
+```{r}
+
+
+```

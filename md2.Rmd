@@ -1,0 +1,259 @@
+---
+title: "Final data project: Facebook trolling"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+```
+
+## Introduction
+The first step was to collect data through a survey on Facebook trolling. I got a total of 57 responses.
+
+
+
+```{r import, echo=F}
+data <- read_csv("fb_troll.csv")
+data %>% head
+# First two rows (after the column name) have metadata, remove them
+data <- data %>% filter(row_number() > 2)
+# add row ids
+data <- data %>% rownames_to_column("id")
+data %>% head
+```
+## 2. Data Columns
+Let's now see what the columns of our data set are. Note that the first 17 columns are metadata that Qualtrics inserted. 
+```{r}
+colnames(data)
+```
+##Facebook Analysis
+See how many people have experienced trolling
+```{r warning=FALSE}
+data %>% group_by(Q1) %>% count
+ggplot(data, aes(data$Q1)) + geom_bar()
+```
+```{r warning=FALSE}
+# create Q1_num
+data <- data %>% mutate(Q1_num=as.numeric(Q1)) 
+
+# show unsuccessful conversions
+invalid_ids <-  data %>% filter(is.na(Q1_num)) %>% pull(id)
+data %>% filter(is.na(Q1_num)) %>% select(id,Q1,Q1_num)
+``` 
+
+
+```{r warning=FALSE}
+data %>% group_by(Q2) %>% count
+ggplot(data, aes(data$Q2)) + geom_bar()
+```
+
+
+```{r warning=FALSE}
+ 
+data %>% group_by(Q3) %>% count
+data %>% filter(Q3 != "") %>% ggplot(aes(Q3)) + geom_bar()
+
+```
+
+
+```{r warning=FALSE}
+data %>% drop_na()
+data %>% group_by(Q10) %>% count
+ggplot(data, aes(data$Q10)) + geom_bar()
+```
+
+```{r warning=FALSE}
+heatmap_1 <- matrix(c(14,10,26,12,8,17),ncol=3,byrow=TRUE)
+colnames(heatmap_1) <- c("PR","CR", "Report")
+rownames(heatmap_1) <- c("Male","Female")
+heatmap_1 <- as.table(heatmap_1)
+heatmap_1
+```
+```{r warning=FALSE}
+heat_matrix <- data.matrix(heatmap_1)
+```
+
+
+##Heatmap
+
+Here I was trying to create a Heatmap to see patterns between Male-Female and who reported more than the other, and if male or female faced personal remark/community remark more than the other person.
+```{r warning=FALSE}
+malefemale_heatmap <- heatmap(heat_matrix, Rowv=NA, Colv=NA, col = heat.colors(256), scale="none", margins=c(5,5))
+```
+
+##Total time 
+
+I was interested in doing some kind of t test to see which group Male or Female spends more time on Facebook. To do that, I converted new column which stores average number of times people login to their Fb account. I created another column which has total time spent by people each time they logged in. I then multipiled the two to get the total time spent with male/female ratio. Then, I ran t test.
+
+```{r warning=FALSE}
+data <- data %>%
+  mutate(Q3_num = case_when(Q3 == "10-12 times a day" ~ "11",
+                            Q3 == "Once a day" ~ "1",
+                            Q3 == "1-3 times a day" ~ "1.5",
+                            Q3 == "Once a week" ~ "0.14",
+                            Q3 == "I don't keep a track" ~ "0",
+                            Q3 == "" ~ "0",
+                            Q3 == "NA" ~ "0"))
+data <- data %>%
+  mutate(Q5_num = case_when(Q5 == "1-5 minutes (Quickly checking notifications)" ~ "2.5",
+                            Q5 == "An hour" ~ "60",
+                            Q5 == "1-3 times a day" ~ "1.5",
+                            Q5 == "10-15 minutes" ~ "12.5",
+                            Q5 == "It really depends on the day" ~ "0",
+                            Q5 == "I have no idea" ~ "0",
+                            Q5 == "" ~ "0",
+                            Q5 == "NA" ~ "0"))
+  
+```
+
+
+#Descriptive statistics for how many times Fb was accessed in a day
+
+```{r warning=FALSE}
+data <- data %>% drop_na(Q3_num) %>% mutate(Q3_num=as.numeric(Q3_num))
+data <- data %>% drop_na(Q5_num) %>% mutate(Q5_num=as.numeric(Q5_num))
+data <- data %>% mutate(total_time = Q3_num * Q5_num)
+```
+
+
+```{r warning=FALSE}
+data %>% summarise(Q3_mean = mean(Q3_num),
+Q3_median = median(Q3_num),
+Q3_min = min(Q3_num),
+Q3_max = max(Q3_num),
+Q3_total = n(),
+Q3_sd = sd(Q3_num))
+
+```
+```{r warning=FALSE}
+ggplot(data %>% transmute(Q3_num=sqrt(Q3_num)), aes(Q3_num)) + geom_histogram(binwidth=1) #coord_cartesian(xlim=c(0,3100),ylim=c(0,15))
+```
+For those who only identify themselves as Females 
+
+```{r warning=FALSE}
+females <- data %>% filter(Q7 == "Female") %>% mutate(Q3_num=log(Q3_num))
+ggplot(females, aes(Q3_num)) + geom_histogram(binwidth=1)+ coord_cartesian(xlim=c(0,
+10),ylim=c(0,10))
+```
+
+For those who only identify themselves as Mmales 
+
+```{r warning=FALSE}
+males <- data %>% filter(Q7 == "Male") %>% mutate(Q3_num=log(Q3_num))
+ggplot(males, aes(Q3_num)) + geom_histogram(binwidth=1)+ coord_cartesian(xlim=c(0,
+10),ylim=c(0,10))
+```
+
+#Descriptive statistics for how much time was spent on Fb each time that a person logged in (time in minutes)
+
+```{r warning=FALSE}
+data %>% summarise(Q5_mean = mean(Q5_num),
+Q5_median = median(Q5_num),
+Q5_min = min(Q5_num),
+Q5_max = max(Q5_num),
+Q5_total = n(),
+Q5_sd = sd(Q5_num))
+```
+
+
+```{r warning=FALSE}
+ggplot(data %>% transmute(Q3_num=sqrt(Q3_num)), aes(Q3_num)) + geom_histogram(binwidth=1) #coord_cartesian(xlim=c(0,3100),ylim=c(0,15))
+```
+
+For those who qualify themselves as females 
+
+```{r warning=FALSE}
+females <- data %>% filter(Q7 == "Female") %>% mutate(Q5_num=log(Q5_num))
+ggplot(females, aes(Q5_num)) + geom_histogram(binwidth=1)+ coord_cartesian(xlim=c(0,
+10),ylim=c(0,10))
+
+```
+
+For those who qualify themselves as males 
+```{r warning=FALSE}
+males <- data %>% filter(Q7 == "Male") %>% mutate(Q5_num=log(Q5_num))
+ggplot(males, aes(Q5_num)) + geom_histogram(binwidth=1)+ coord_cartesian(xlim=c(0,
+10),ylim=c(0,10))
+```
+
+#Descriptive statistics for how much time was spent on Fb
+
+```{r warning=FALSE}
+data %>% summarise(t_mean = mean(total_time),
+t_median = median(total_time),
+t_min = min(total_time),
+t_max = max(total_time),
+t_total = n(),
+t_sd = sd(total_time))
+```
+
+
+```{r warning=FALSE}
+ggplot(data %>% transmute(total_time=sqrt(total_time)), aes(total_time)) + geom_histogram(binwidth=1) #coord_cartesian(xlim=c(0,100),ylim=c(0,20))
+```
+
+
+Now running t test to see who uses more facebook between males and females
+
+```{r}
+female <- data %>% filter(Q7 == "Female")
+male <- data %>% filter(Q7 == "Male")
+male_tt <- male %>% pull(total_time)
+female_tt <- female %>% pull(total_time)
+t.test(male_tt,female_tt,var.equal=TRUE)
+```
+
+
+
+```{r}
+megaplot <- data %>% select(Q7,Q3_num, Q5_num, total_time)
+```
+
+```{r}
+print(megaplot)
+```
+```{r}
+
+library(GGally)
+
+ggparcoord(megaplot, columns = 1:4, groupColumn = 'Q7', scale = 'globalminmax')
+
+```
+
+
+
+```{r}
+# group by combinations and count
+#megaplot %>% group_by(Q7) %>% count()
+
+# set an id string that denotes the value combination
+megaplot %>% mutate(id = factor(paste(Q3_num, Q5_num, total_time, Q7, sep = '-')))
+
+megaplot2 <- megaplot %>% mutate(id = factor(paste(Q3_num, Q5_num, total_time, Q7, sep = '-')))
+```
+```{r}
+head(megaplot2, n=31)
+```
+
+```{r}
+
+library(GGally)
+
+ggparcoord(megaplot2, columns = 2:4, groupColumn = 'id', scale = 'uniminmax', missing = 'exclude', title = "Parallel Coordinate Plot for Male-Female total times logged in, time spent during each logged session and total time ")
+
+```
+
+```{r}
+mp3<- as.data.frame(megaplot2)
+library(ggparallel)
+ggparallel(list('Q7','total_time', 'Q3_num', 'Q5_num'), mp3, order = 0)
+```
+
+
+
+
+
+
+This is the end of results-----------------
